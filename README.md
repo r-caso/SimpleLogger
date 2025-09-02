@@ -57,32 +57,35 @@ target_link_libraries(your_target PRIVATE SimpleLogger::SimpleLogger)
 ```
 
 ## Usage
-
 ### In Your Library Code
-
 ```cpp
 #include <SimpleLogger/simple_logger.hpp>
-
 using namespace iif_sadaf::talk::simple_logger;
 
-void semantic_analysis(SimpleLogger& logger) {
-    logger.info("Starting semantic analysis");
+void semantic_analysis(SimpleLogger* logger) {
+    // call normalize() to handle null pointers
+    logger = normalize(logger);
+    logger->info("Starting semantic analysis");
     
-    logger.debug("Loading model weights from cache");
-    logger.debug("Initializing tokenizer");
+    // Only do expensive string operations if logger is active
+    if (logger->is_active()) {
+        std::string expensive_debug_info = compute_detailed_stats();
+        logger->debug("Model stats: " + expensive_debug_info);
+    }
+    
+    logger->debug("Loading model weights from cache");
+    logger->debug("Initializing tokenizer");
     
     // Process data...
-    logger.debug("Processing 1500 tokens");
-    logger.debug("Confidence score: 0.87");
+    logger->trace("Processing 1500 tokens");
+    logger->trace("Confidence score: 0.87");
     
-    logger.info("Analysis complete - 3 entities found");
+    logger->info("Analysis complete - 3 entities found");
 }
 ```
 
 ### In Your Application
-
 Implement the interface to control logging behavior:
-
 ```cpp
 #include <SimpleLogger/simple_logger.hpp>
 #include <iostream>
@@ -90,7 +93,6 @@ Implement the interface to control logging behavior:
 class ConsoleLogger : public iif_sadaf::talk::simple_logger::SimpleLogger {
 private:
     LogLevel current_level = LogLevel::Info;
-
 public:
     LogLevel get_log_level() const override {
         return current_level;
@@ -114,13 +116,18 @@ int main() {
     
     // Set to Info level - only see general messages
     logger.set_log_level(LogLevel::Info);
-    semantic_analysis(logger);
+    semantic_analysis(&logger);
     
     std::cout << "\n--- Switching to Debug level ---\n\n";
     
     // Set to Debug level - see all messages
     logger.set_log_level(LogLevel::Debug);
-    semantic_analysis(logger);
+    semantic_analysis(&logger);
+    
+    std::cout << "\n--- No logging (pass nullptr) ---\n\n";
+    
+    // Pass nullptr - uses built-in null logger (no overhead)
+    semantic_analysis(nullptr);
     
     return 0;
 }
@@ -131,16 +138,27 @@ Output with Info level:
 [INFO] Starting semantic analysis
 [INFO] Analysis complete - 3 entities found
 ```
-
 Output with Debug level:
 ```
 [INFO] Starting semantic analysis
 [DEBUG] Loading model weights from cache
 [DEBUG] Initializing tokenizer
-[DEBUG] Processing 1500 tokens
-[DEBUG] Confidence score: 0.87
 [INFO] Analysis complete - 3 entities found
 ```
+Output with Trace level:
+```
+[INFO] Starting semantic analysis
+[DEBUG] Loading model weights from cache
+[DEBUG] Initializing tokenizer
+[TRACE] Processing 1500 tokens
+[TRACE] Confidence score: 0.87
+[INFO] Analysis complete - 3 entities found
+```
+
+### Key Features
+- **Null-safe**: Pass `nullptr` to disable logging completely with zero overhead
+- **Performance-aware**: Use `is_active()` to avoid expensive string operations when logging is disabled
+- **Thread-safe**: Built-in null logger uses safe singleton pattern
 
 ## Interface Reference
 
@@ -169,13 +187,31 @@ public:
     virtual void log(LogLevel level, std::string_view message) = 0;
     
     // Convenience methods
-    void debug(std::string_view message);  // Calls log(LogLevel::Debug, message)
     void info(std::string_view message);   // Calls log(LogLevel::Info, message)
+    void debug(std::string_view message);  // Calls log(LogLevel::Debug, message)
+    void trace(std::string_view message);  // Calls log(LogLevel::Trace, message)
     
     virtual ~SimpleLogger() = default;
 };
 ```
 
+### NullLogger class
+```cpp
+class NullLogger : public SimpleLogger {
+    virtual LogLevel get_log_level() const override;             // returns LogLevel::Info by default
+    virtual void set_log_level(LogLevel level) override;         // does nothing, it's a null logger!
+    void log(LogLevel level, std::string_view message) override; // does nothing, it's a null logger!
+    bool is_active() const override;                             // returns false, it's a null logger!
+};
+
+inline NullLogger* null_logger(); // returns NullLogger instance
+```
+
+### Logger normalization function
+```cpp
+inline SimpleLogger* normalize(SimpleLogger* logger); // returns NullLogger if logger = nullptr,
+                                                      // returns logger otherwise
+```
 ## Design Philosophy
 
 SimpleLogger is designed around the principle of **intent separation**:
