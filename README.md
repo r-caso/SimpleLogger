@@ -2,11 +2,11 @@
 
 A minimalist, header-only C++ logging interface designed for libraries that need to expose internal information to applications in a unified way.
 
-Please, take notice that SimpleLogger is not (and will never be) meant to be a fully-fledged logging interface.
+Please, take notice that SimpleLogger is not (and will never be) a fully-fledged logging interface.
 
 ## Overview
 
-SimpleLogger provides a clean abstract interface for logging with two levels of detail:
+SimpleLogger provides a clean abstract interface for logging with three levels of detail:
 - **Info**: General operational messages
 - **Debug**: Detailed internal information (includes Info messages when Debug level is set)
 - **Trace**: Really verbose internal information (includes both Info and Debug as well)
@@ -33,7 +33,7 @@ include(FetchContent)
 FetchContent_Declare(
     SimpleLogger
     GIT_REPOSITORY https://github.com/r-caso/SimpleLogger
-    GIT_TAG v1.0.0
+    GIT_TAG v0.2.0
 )
 FetchContent_MakeAvailable(SimpleLogger)
 
